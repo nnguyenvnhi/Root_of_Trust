@@ -29,6 +29,8 @@
 #include "sc.h"
 #include "ChaCha20.h"
 #include "stdio.h"
+#include "Ex_Flash.h"
+#include "W25Qxx.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -61,6 +63,8 @@ typedef enum{
 /* Private variables ---------------------------------------------------------*/
 SD_HandleTypeDef hsd;
 
+SPI_HandleTypeDef hspi2;
+
 TIM_HandleTypeDef htim1;
 
 UART_HandleTypeDef huart4;
@@ -79,6 +83,7 @@ static void MX_USART1_UART_Init(void);
 static void MX_UART4_Init(void);
 static void MX_USART2_UART_Init(void);
 static void MX_TIM1_Init(void);
+static void MX_SPI2_Init(void);
 /* USER CODE BEGIN PFP */
 static uint32_t total_time = 0;
 /* USER CODE END PFP */
@@ -284,8 +289,45 @@ uint8_t read_reset_cause(){
 //HAL_StatusTypeDef tree_hash_on_flash(defFlashSlot slot, uint8_t* md, uint32_t size);
 
 uint32_t size = 0;
-uint8_t md[64], signature[64], publickey[32], hashvaluer[64];
+uint8_t md[64], signature[64], publickey[32], hashvaluer[64], sig[64], pub[32], hashval[64];
 FRESULT f1,f2,f3;
+uint8_t buffer[160] = {0,};
+
+void Update_Signature(Certificate *cert, uint8_t* signature){
+	for(uint8_t index = 0; index < 64; index++){
+		cert->signature[index] = signature[index];
+	}
+}
+
+void Update_Publickey(Certificate *cert, uint8_t* publickey){
+	for(uint8_t index = 0;index < 32; index++){
+		cert->publickey[index] = publickey[index];
+	}
+}
+void Update_HashValue(Certificate *cert, uint8_t* hashvalue){
+	for(uint8_t index = 0;index < 32; index++){
+			cert->hash[index] = hashvalue[index];
+	}
+}
+
+void Update_BootloaderCert(uint8_t* signature, uint8_t* publickey, uint8_t* hashvalue){
+	Update_Signature(&Bootloader_Cert, signature);
+	Update_Publickey(&Bootloader_Cert, publickey);
+	Update_HashValue(&Bootloader_Cert, hashvalue);
+}
+
+void Update_Application1Cert(uint8_t* signature, uint8_t* publickey, uint8_t* hashvalue){
+	Update_Signature(&Application1_Cert, signature);
+	Update_Publickey(&Application1_Cert, publickey);
+	Update_HashValue(&Application1_Cert, hashvalue);
+}
+
+void Update_Application2Cert(uint8_t* signature, uint8_t* publickey, uint8_t* hashvalue){
+	Update_Signature(&Application2_Cert, signature);
+	Update_Publickey(&Application2_Cert, publickey);
+	Update_HashValue(&Application2_Cert, hashvalue);
+}
+
 /* USER CODE END 0 */
 
 /**
@@ -322,17 +364,45 @@ int main(void)
   MX_UART4_Init();
   MX_USART2_UART_Init();
   MX_TIM1_Init();
+  MX_SPI2_Init();
   /* USER CODE BEGIN 2 */
   HAL_TIM_Base_Start(&htim1);
   uint16_t time = 0;
   uint32_t total_time = 0;
+  FATFS fatfs; FIL myfile;
+//  uint8_t sig[64], pub[32], has[64];
+//  W25qxx_Init();
+//    	  for(uint8_t i = 0;i<64;i++){
+//    		  sig[i] = i + 1;
+//    		  has[i] = i + 2;
+//
+//    	  }
+//    	  for (uint8_t i = 0;i<32;i++){
+//    		  pub[i] = i + 3;
+//    	  }
+//
+//    	  Update_BootloaderCert(sig, pub, has);
+//  W25qxx_EraseSector(1);
+//  read_file_and_store_into_flash(&fatfs, &myfile, "boot.bin", FA_READ, FLASH_SLOT_0, signature, publickey, hashvaluer);
+//  Update_BootloaderCert(signature, publickey, hashvaluer);
+//  W25qxx_WriteSector(Bootloader_Cert.signature, 1, 0, 64);
+//  W25qxx_WriteSector(Bootloader_Cert.publickey, 1, 64, 32);
+//  W25qxx_WriteSector(Bootloader_Cert.hash, 1, 96, 64);
+//
+//  W25qxx_EraseSector(2);
+//  read_file_and_store_into_flash(&fatfs, &myfile, "appa.bin", FA_READ, FLASH_SLOT_1, signature, publickey, hashvaluer);
+//  Update_Application1Cert(signature, publickey, hashvaluer);
+//  W25qxx_WriteSector(Application1_Cert.signature, 2, 0, 64);
+//  W25qxx_WriteSector(Application1_Cert.publickey, 2, 64, 32);
+//  W25qxx_WriteSector(Application1_Cert.hash, 2, 96, 64);
+//
+//  W25qxx_ReadSector(buffer, 1, 0, 160);
 
   if(read_reset_cause()) {
 	  HAL_GPIO_WritePin(GPIOD, GPIO_PIN_14, GPIO_PIN_SET);
 	  goto_application(FLASH_SLOT_0_ADD);
   }
   HAL_UART_Transmit(&huart2, "\r*****THIS IS ROT PROGRAM*****\n\r", 32, 1000);
-  FATFS fatfs; FIL myfile;
   uint8_t buffer[100] = {0,};
   TIM1->CNT = 0;
   size = read_file_and_store_into_flash(&fatfs, &myfile, "boot.bin", FA_READ, FLASH_SLOT_0, signature, publickey, hashvaluer);
@@ -351,7 +421,11 @@ int main(void)
   HAL_UART_Transmit(&huart2, buffer, 40, 1000);
   memset(buffer, 0, 100);
   TIM1->CNT = 0;
-  if (ed25519_verify(signature, md, 64, publickey)) {
+  W25qxx_Init();
+  W25qxx_ReadSector(sig, 1, ADDRESS_STORE_BOOTLOADER_CERT , 64);
+  W25qxx_ReadSector(pub, 1, ADDRESS_STORE_BOOTLOADER_CERT + 64, 32);
+  W25qxx_ReadSector(hashval, 1, ADDRESS_STORE_BOOTLOADER_CERT + 32 + 64, 64);
+  if (ed25519_verify(sig, md, 64, pub)) {
 	  time = TIM1->CNT;
 	  total_time += time;
 	  HAL_UART_Transmit(&huart2, "\r       -VERIFY BOOTLOADER SUCCESSFULL\n\r", 50, 1000);
@@ -459,6 +533,44 @@ static void MX_SDIO_SD_Init(void)
   /* USER CODE BEGIN SDIO_Init 2 */
 
   /* USER CODE END SDIO_Init 2 */
+
+}
+
+/**
+  * @brief SPI2 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_SPI2_Init(void)
+{
+
+  /* USER CODE BEGIN SPI2_Init 0 */
+
+  /* USER CODE END SPI2_Init 0 */
+
+  /* USER CODE BEGIN SPI2_Init 1 */
+
+  /* USER CODE END SPI2_Init 1 */
+  /* SPI2 parameter configuration*/
+  hspi2.Instance = SPI2;
+  hspi2.Init.Mode = SPI_MODE_MASTER;
+  hspi2.Init.Direction = SPI_DIRECTION_2LINES;
+  hspi2.Init.DataSize = SPI_DATASIZE_8BIT;
+  hspi2.Init.CLKPolarity = SPI_POLARITY_LOW;
+  hspi2.Init.CLKPhase = SPI_PHASE_1EDGE;
+  hspi2.Init.NSS = SPI_NSS_SOFT;
+  hspi2.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_2;
+  hspi2.Init.FirstBit = SPI_FIRSTBIT_MSB;
+  hspi2.Init.TIMode = SPI_TIMODE_DISABLE;
+  hspi2.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
+  hspi2.Init.CRCPolynomial = 10;
+  if (HAL_SPI_Init(&hspi2) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN SPI2_Init 2 */
+
+  /* USER CODE END SPI2_Init 2 */
 
 }
 
@@ -619,11 +731,22 @@ static void MX_GPIO_Init(void)
   /* GPIO Ports Clock Enable */
   __HAL_RCC_GPIOH_CLK_ENABLE();
   __HAL_RCC_GPIOA_CLK_ENABLE();
+  __HAL_RCC_GPIOB_CLK_ENABLE();
   __HAL_RCC_GPIOD_CLK_ENABLE();
   __HAL_RCC_GPIOC_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_12, GPIO_PIN_RESET);
+
+  /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOD, GPIO_PIN_12|GPIO_PIN_13|GPIO_PIN_14|GPIO_PIN_15, GPIO_PIN_RESET);
+
+  /*Configure GPIO pin : PB12 */
+  GPIO_InitStruct.Pin = GPIO_PIN_12;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
   /*Configure GPIO pins : PD12 PD13 PD14 PD15 */
   GPIO_InitStruct.Pin = GPIO_PIN_12|GPIO_PIN_13|GPIO_PIN_14|GPIO_PIN_15;

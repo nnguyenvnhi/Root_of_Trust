@@ -26,6 +26,7 @@ Core/Src/main.o: ../Core/Src/main.c ../Core/Inc/main.h \
  ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_pwr_ex.h \
  ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_sd.h \
  ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_ll_sdmmc.h \
+ ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_spi.h \
  ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_tim.h \
  ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_tim_ex.h \
  ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_uart.h \
@@ -37,7 +38,9 @@ Core/Src/main.o: ../Core/Src/main.c ../Core/Inc/main.h \
  ../Middlewares/Third_Party/FatFs/src/ff.h ../FATFS/Target/sd_diskio.h \
  ../Core/Inc/ed25519.h ../Core/Inc/sha3.h ../Core/Inc/ge.h \
  ../Core/Inc/fe.h ../Core/Inc/fixedint.h ../Core/Inc/sc.h \
- ../Core/Inc/ChaCha20.h ../Core/Inc/Compiler.h ../Core/Inc/Std_Types.h
+ ../Core/Inc/ChaCha20.h ../Core/Inc/Compiler.h ../Core/Inc/Std_Types.h \
+ ../Core/Inc/Ex_Flash.h ../Core/Inc/main.h ../Core/Inc/W25Qxx.h \
+ ../Core/Inc/W25Qxx.h
 
 ../Core/Inc/main.h:
 
@@ -95,6 +98,8 @@ Core/Src/main.o: ../Core/Src/main.c ../Core/Inc/main.h \
 
 ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_ll_sdmmc.h:
 
+../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_spi.h:
+
 ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_tim.h:
 
 ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_tim_ex.h:
@@ -136,3 +141,11 @@ Core/Src/main.o: ../Core/Src/main.c ../Core/Inc/main.h \
 ../Core/Inc/Compiler.h:
 
 ../Core/Inc/Std_Types.h:
+
+../Core/Inc/Ex_Flash.h:
+
+../Core/Inc/main.h:
+
+../Core/Inc/W25Qxx.h:
+
+../Core/Inc/W25Qxx.h:
